@@ -31,10 +31,10 @@ df_exons_for_bed = pd.concat(
                 'chromStart': map(int, row.exonStarts.strip(',').split(',',)),
                 'chromEnd': map(int, row.exonEnds.strip(',').split(',')),
                 'name': map(
-                    lambda x: _ + '_exon' + str(x + 1), 
+                    lambda x: idx + '_exon' + str(x + 1), 
                     range(len(row.exonStarts.strip(',').split(',')))
                 ), 
                 'strand': row.strand}) 
-        for _, row in df_canonical_exons.iterrows()
+        for idx, row in df_canonical_exons.iterrows()
         ]
 ).sort_values(by=["chrom", "chromStart"]).reset_index(drop=True)
