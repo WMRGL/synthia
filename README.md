@@ -12,7 +12,7 @@ This is a two-step process:
     the FASTQ files.
 
 ## generate_vcf.py
-'''
+```
 usage: generate_vcf.py [-h] [-b BEDFILE] {hg19,hg38}
 
 A script which takes a reference genome (hg19 or hg38) name as input as well
@@ -33,4 +33,4 @@ optional arguments:
                         A bedfile which will be used to specify desired
                         regions for exonic variants.
 
-'''
+```
