@@ -12,12 +12,17 @@ __description__ = """
     panel).
 """
 import argparse
+import configparser
+import os
 import sys
 
 from generate_vcf import bed_generator
+from generate_vcf import vcf_generator
 
 
-def main(args):
+def main(args, config):
+    sys.stdout.write(f'Creating bed file...\n')
+    sys.stdout.flush()
     bed_gen = bed_generator.BEDGenerator(
         genome=args.genome,
         bedfile=args.bedfile,
@@ -26,10 +31,27 @@ def main(args):
     )
     df_bedfile = bed_gen.run()
     sys.stdout.write(f'Saved bed file to {bed_gen.outfile}\n')
+
+    sys.stdout.write(f'Creating VCF file...\n')
+    sys.stdout.flush()
+
+    vcf_gen = vcf_generator.VCFGenerator(
+        df_bed=df_bedfile,
+        process_count=args.process_count,
+        genome=args.genome,
+        genome_file=config['GENOME_RESOURCES'][args.genome],
+        output_dir=args.output_dir,
+        output_name=args.name
+    )
+    df_vcf = vcf_gen.run()
+    sys.stdout.write(f'Saved vcf file to {vcf_gen.outfile}\n')
     sys.stdout.flush()
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__description__)
+    config = configparser.ConfigParser()
+    config.read('config.ini')
+
     parser.add_argument(
         '-g', '--genome',
         required=True,
@@ -69,5 +91,10 @@ if __name__ == '__main__':
             and FASTQ files (optional; defaults to 1).
         """
     )
+
     args = parser.parse_args()
-    main(args)
+    # check genome file is indexed
+    if not os.path.exists(config['GENOME_RESOURCES'][args.genome] + '.fai'):
+        raise Exception(f"Cannot find index for {args.genome}.")
+
+    main(args, config)
