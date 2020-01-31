@@ -8,15 +8,18 @@ __description__ = """
 """
 import multiprocessing
 import os
+import random
 import sys
 
 import pysam
 
-from generate_vcf.utils import MultiprocessCounter
 
-
-seq_counter = MultiprocessCounter(0)
-var_counter = MultiprocessCounter(0)
+VARIANT_OPTIONS = {
+    'A': ['T', 'C', 'G'], 'a': ['t', 'c', 'g'],
+    'T': ['A', 'C', 'G'], 't': ['a', 'c', 'g'],
+    'C': ['T', 'A', 'G'], 'c': ['t', 'a', 'g'],
+    'G': ['T', 'C', 'A'], 'g': ['t', 'c', 'a']
+}
 
 
 class VCFGenerator():
@@ -30,35 +33,24 @@ class VCFGenerator():
             output_dir, 
             f"{output_name}.{genome}.bed"
         )
-        # set later
-        self.total_regions = None  
 
     def run(self):
         # get sequence for each bed record in parallel
         process_pool = multiprocessing.Pool(self.process_count)
 
         regions = self.df_bed.to_dict('records')
-        self.total_regions = len(regions)
 
-        count = f"{seq_counter.value}/{self.total_regions}"
-
+        sys.stdout.write('Creating variants for bed file regions...')
+        sys.stdout.flush()
         variants = process_pool.map(self.create_variants, regions)
+        sys.stdout.write('OK!')
+        sys.stdout.flush()
+        print(variants)
 
     def create_variants(self, region):
-        sys.stdout.write(f'Fetching sequence for all regions...{count}\r')
-        sys.stdout.flush()
-        sequence = lookup_sequence(region)
-        sys.stdout.write('\n')
-        sys.stdout.flush()
+        sequence = self.lookup_sequence(region)
+        variant = self.create_random_variant(region, sequence)
 
-        sys.stdout.write(f'Creating variant for all regions...{count}\r')
-        sys.stdout.flush()
-        variant = create_random_variant(region, sequence)
-        sys.stdout.write('\n')
-        sys.stdout.flush()
-
-    def create_random_variant(self, region, sequence):
-        raise NotImplementedError()
 
     def lookup_sequence(self, region):
         # look up the DNA sequence from the ref given in config file
@@ -67,7 +59,28 @@ class VCFGenerator():
             f"{region['chrom']}:{region['chromStart']}-{region['chromEnd']}"
         )
         sequence = ''.join(dna_lookup.split('\n')[1:])
-        seq_counter.increment()
-        count = f"{seq_counter.value}/{self.total_regions}"
-        sys.stdout.write(f'Fetching sequence for all regions...{count}\r')
         return sequence
+
+    def create_random_variant(self, region, sequence):
+        # don't want to pull an unknown base from ref
+        vcf_ref = 'N'
+        while vcf_ref != 'N':
+            exon_pos = random.randrange(len(sequence))
+            vcf_pos = region['chromStart'] + exon_pos
+            vcf_ref = sequence[exon_pos]
+
+        # select random base that is not the same; account for lowercase in ref
+        vcf_alt = random.choice(VARIANT_OPTIONS[vcf_ref])
+
+        variant = {
+            '#CHROM': region[0],
+            'POS': vcf_pos,
+            'REF': vcf_ref,
+            'ALT': vcf_alt,
+            'QUAL': '.',
+            'FILTER': 'PASS',
+            'INFO': '.',
+            'FORMAT': 'GT',
+            'SAMP001': '0|1'
+        }
+        return variant
