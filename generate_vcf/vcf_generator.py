@@ -31,7 +31,7 @@ class VCFGenerator():
         self.genome_file = genome_file
         self.outfile = os.path.join(
             output_dir, 
-            f"{output_name}.{genome}.bed"
+            f"{output_name}.{genome}.vcf"
         )
 
     def run(self):
@@ -42,14 +42,30 @@ class VCFGenerator():
 
         sys.stdout.write('Creating variants for bed file regions...')
         sys.stdout.flush()
-        variants = process_pool.map(self.create_variants, regions)
-        sys.stdout.write('OK!')
+        regions = process_pool.map(self.create_variants, regions)
+        sys.stdout.write('OK!\n')
         sys.stdout.flush()
-        print(variants)
+        print(regions)
+
+    def create_full_vcf(self):
+        vcf_header = [
+            '##fileformat=VCFv4.2\n',
+            '##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">\n'
+            '#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\tSAMP001\n'
+        ]
+        with open(self.outfile, 'w') as vcf_file:
+            vcf_file.writelines(vcf_header)
+
+    def write_variant_to_full_vcf(self, variant):
+        with open(self.outfile, 'a') as vcf_file:
+            vcf_file.write(
+                '\t'.join([str(x) for x in list(variant.values())]) + '\n'
+            )
 
     def create_variants(self, region):
         sequence = self.lookup_sequence(region)
         variant = self.create_random_variant(region, sequence)
+        return {'region': region, 'sequence': sequence, 'variant': variant}
 
 
     def lookup_sequence(self, region):
@@ -64,7 +80,7 @@ class VCFGenerator():
     def create_random_variant(self, region, sequence):
         # don't want to pull an unknown base from ref
         vcf_ref = 'N'
-        while vcf_ref != 'N':
+        while vcf_ref == 'N':
             exon_pos = random.randrange(len(sequence))
             vcf_pos = region['chromStart'] + exon_pos
             vcf_ref = sequence[exon_pos]
@@ -73,8 +89,9 @@ class VCFGenerator():
         vcf_alt = random.choice(VARIANT_OPTIONS[vcf_ref])
 
         variant = {
-            '#CHROM': region[0],
+            '#CHROM': region["chrom"],
             'POS': vcf_pos,
+            'ID': region["name"],
             'REF': vcf_ref,
             'ALT': vcf_alt,
             'QUAL': '.',
@@ -83,4 +100,5 @@ class VCFGenerator():
             'FORMAT': 'GT',
             'SAMP001': '0|1'
         }
+        self.write_variant_to_full_vcf(variant)
         return variant
