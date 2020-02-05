@@ -12,6 +12,7 @@ import random
 import sys
 
 import pysam
+import pandas as pd
 
 
 VARIANT_OPTIONS = {
@@ -42,12 +43,15 @@ class VCFGenerator():
 
         sys.stdout.write('Creating variants for bed file regions...')
         sys.stdout.flush()
-        regions = process_pool.map(self.create_variants, regions)
+        region_variants = process_pool.map(self.create_variants, regions)
+        variants = [x['variant'] for x in region_variants]
         sys.stdout.write('OK!\n')
         sys.stdout.flush()
-        print(regions)
+        self.create_full_vcf(variants)
+        df_vcf = pd.DataFrame(variants)
+        return df_vcf
 
-    def create_full_vcf(self):
+    def create_full_vcf(self, variants):
         vcf_header = [
             '##fileformat=VCFv4.2\n',
             '##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">\n'
@@ -55,18 +59,15 @@ class VCFGenerator():
         ]
         with open(self.outfile, 'w') as vcf_file:
             vcf_file.writelines(vcf_header)
-
-    def write_variant_to_full_vcf(self, variant):
-        with open(self.outfile, 'a') as vcf_file:
-            vcf_file.write(
-                '\t'.join([str(x) for x in list(variant.values())]) + '\n'
-            )
+            for variant in variants:
+                vcf_file.write(
+                    '\t'.join([str(x) for x in list(variant.values())]) + '\n'
+                )
 
     def create_variants(self, region):
         sequence = self.lookup_sequence(region)
         variant = self.create_random_variant(region, sequence)
         return {'region': region, 'sequence': sequence, 'variant': variant}
-
 
     def lookup_sequence(self, region):
         # look up the DNA sequence from the ref given in config file
@@ -100,5 +101,4 @@ class VCFGenerator():
             'FORMAT': 'GT',
             'SAMP001': '0|1'
         }
-        self.write_variant_to_full_vcf(variant)
         return variant

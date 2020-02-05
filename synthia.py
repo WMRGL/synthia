@@ -47,6 +47,7 @@ def main(args, config):
     sys.stdout.write(f'Saved vcf file to {vcf_gen.outfile}\n')
     sys.stdout.flush()
 
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__description__)
     config = configparser.ConfigParser()
