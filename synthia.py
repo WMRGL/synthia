@@ -16,8 +16,9 @@ import configparser
 import os
 import sys
 
-from generate_vcf import bed_generator
-from generate_vcf import vcf_generator
+from generate_fastq import bed_generator
+from generate_fastq import vcf_generator
+from generate_fastq import fastq_generator
 
 
 def main(args, config):
@@ -47,6 +48,14 @@ def main(args, config):
     sys.stdout.write(f'Saved vcf file to {vcf_gen.outfile}\n')
     sys.stdout.flush()
 
+    fastq_gen = fastq_generator.FASTQGenerator(
+        df_vcf=df_vcf,
+        process_count=args.process_count,
+        genome=args.genome,
+        genome_file=config['GENOME_RESOURCES'][args.genome],
+        output_dir=args.output_dir,
+        output_name=args.name
+    )
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__description__)
